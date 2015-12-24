@@ -52,8 +52,9 @@ import jinja2
 import py2pack.proxy
 
 
+PYPI_DEFAULT_SERVER = 'https://pypi.python.org/pypi'
+pypi = None
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')  # absolute template path
-pypi = xmlrpclib.ServerProxy('https://pypi.python.org/pypi')                      # XML RPC connection to PyPI
 env = jinja2.Environment(loader=jinja2.FileSystemLoader(TEMPLATE_DIR))      # Jinja2 template environment
 env.filters['parenthesize_version'] = \
     lambda s: re.sub('([=<>]+)(.+)', r' (\1 \2)', s)
@@ -305,9 +306,11 @@ def file_template_list():
 
 
 def main():
+    global pypi
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--version', action='version', version='%(prog)s {0}'.format(__version__))
     parser.add_argument('--proxy', help='HTTP proxy to use')
+    parser.add_argument('--pypi', help='PyPi server to use, default is {0}'.format(PYPI_DEFAULT_SERVER))
     subparsers = parser.add_subparsers(title='commands')
 
     parser_list = subparsers.add_parser('list', help='list all packages on PyPI')
@@ -339,6 +342,11 @@ def main():
     parser_help.set_defaults(func=lambda args: parser.print_help())
 
     args = parser.parse_args()
+    # set XML RPC connection to PyPI
+    if args.pypi:
+        pypi = xmlrpclib.ServerProxy(args.pypi)
+    else:
+        pypi = xmlrpclib.ServerProxy(PYPI_DEFAULT_SERVER)
 
     # set HTTP proxy if one is provided
     if args.proxy:
@@ -350,6 +358,7 @@ def main():
         transport = py2pack.proxy.ProxiedTransport()
         transport.set_proxy(args.proxy)
         pypi._ServerProxy__transport = transport  # Evil, but should do the trick
+
 
     args.func(args)
 
